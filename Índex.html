@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Leitura de Mercado</title>
+<style>
+  :root { --bg:#f2f4f7; --card:#fff; --ink:#14213d; --muted:#5b6478; --line:#d9dee7; --accent:#1f4fd8; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#10141c; --card:#171d29; --ink:#e8ecf4; --muted:#98a2b8; --line:#283044; --accent:#7ea2ff; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:17px/1.55 Georgia, "Times New Roman", serif; }
+  main { max-width:640px; margin:0 auto; padding:32px 20px 48px; }
+  h1 { font-size:2rem; line-height:1.15; margin:0 0 8px; letter-spacing:-.01em; }
+  p.sub { color:var(--muted); margin:0 0 24px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:20px; }
+  label { display:block; font:600 .9rem system-ui, sans-serif; margin:14px 0 6px; }
+  input { width:100%; padding:12px; font:1rem system-ui, sans-serif; color:var(--ink); background:var(--bg); border:1px solid var(--line); border-radius:8px; }
+  input:focus-visible, button:focus-visible { outline:3px solid var(--accent); outline-offset:2px; }
+  button { margin-top:18px; width:100%; padding:13px; font:600 1rem system-ui, sans-serif; color:#fff; background:var(--accent); border:0; border-radius:8px; cursor:pointer; }
+  @media (prefers-color-scheme: dark) { button { color:#10141c; } }
+  button:disabled { opacity:.6; cursor:wait; }
+  #out { margin-top:20px; white-space:pre-wrap; }
+  .nums { display:flex; flex-wrap:wrap; gap:8px 20px; font:.9rem system-ui, sans-serif; color:var(--muted); margin-bottom:12px; }
+  .err { color:#c0392b; font:.95rem system-ui, sans-serif; }
+  footer { margin-top:24px; font:.8rem/1.4 system-ui, sans-serif; color:var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Leitura de mercado, em português claro</h1>
+  <p class="sub">Digite o código de uma ação da B3 e receba uma explicação dos dados: tendência, risco e contexto.</p>
+  <div class="card">
+    <label for="code">Código de acesso</label>
+    <input id="code" type="password" autocomplete="off" placeholder="O código que você recebeu na compra">
+    <label for="ticker">Ação (ticker)</label>
+    <input id="ticker" type="text" autocapitalize="characters" placeholder="Exemplo: PETR4">
+    <button id="go">Analisar</button>
+    <div id="out" aria-live="polite"></div>
+  </div>
+  <footer>Conteúdo educacional baseado em dados públicos. Não é recomendação de investimento. Rentabilidade passada não garante resultados futuros.</footer>
+</main>
+<script>
+  const $ = id => document.getElementById(id);
+  try { $("code").value = localStorage.getItem("code") || ""; } catch (e) {}
+  $("go").onclick = async () => {
+    const out = $("out"), btn = $("go");
+    btn.disabled = true; out.textContent = "Analisando…";
+    try {
+      try { localStorage.setItem("code", $("code").value); } catch (e) {}
+      const r = await fetch("/api/analyze", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ticker: $("ticker").value, code: $("code").value }),
+      });
+      const j = await r.json();
+      if (!r.ok) { out.innerHTML = ""; const p = document.createElement("p"); p.className = "err"; p.textContent = j.error; out.appendChild(p); }
+      else {
+        const d = j.dados;
+        out.innerHTML = '<div class="nums"><span>' + d.ativo + '</span><span>R$ ' + d.preco + '</span><span>3 meses: ' + (d.retorno_3_meses_pct ?? "–") + '%</span></div>';
+        out.append(document.createTextNode(j.analise));
+      }
+    } catch (e) { out.textContent = "Falha de conexão. Tente de novo."; }
+    btn.disabled = false;
+  };
+</script>
+</body>
+</html>
